@@ -248,7 +248,7 @@ function renderEditor(setlist) {
             h("button", { class: "plain back", onclick: () => show({ name: "home" }) }, "‹ Setlists"),
             h("div", { class: "bar-buttons" },
                 h("button", { onclick: () => printPDF(setlist), disabled: !hasLines,
-                    title: hasLines ? "Save this Setlist as a PDF (Song names only)" : "Add Songs with Sounds first" }, "PDF"),
+                    title: hasLines ? "Download this Setlist as a PDF (Song names only)" : "Add Songs with Sounds first" }, "PDF"),
                 h("button", { onclick: sendAll, title: "Send all Setlists back as one file" }, "Send File"),
                 h("button", { class: "plain", onclick: () => setlistMenu(setlist), "aria-label": "More" }, "•••"))),
         h("label", { class: "title-label" }, "Setlist title",
@@ -481,11 +481,16 @@ function openSongPicker(setlist) {
 
 // MARK: - PDF
 
-/** Names only for now; `renderSetlistPDF` still supports numbers if they're wanted again. */
+/**
+ * Names only for now; `renderSetlistPDF` still supports numbers if they're wanted again.
+ * Always a plain download (no share sheet), so the PDF lands in Downloads.
+ */
 async function printPDF(setlist) {
     const blob = renderSetlistPDF(pdfLines(setlist, songsByID()), { showsNumbers: false, title: displayTitle(setlist) });
     if (!blob) return;
-    await deliver(blob, `${safeName(displayTitle(setlist))}.pdf`, "application/pdf");
+    const filename = `${safeName(displayTitle(setlist))}.pdf`;
+    await deliver(blob, filename, "application/pdf", { preferShare: false });
+    toast(`Downloaded ${filename}`);
 }
 
 const safeName = (text) => text.replace(/[\/\\:*?"<>|]/g, " ").trim() || "Setlist";
