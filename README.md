@@ -7,7 +7,7 @@ A small web app for arranging Setlists from **Dustin's MIDI Setlist Ultratool** 
 ## How it works
 
 1. In the app (Mac, iPad or iPhone): **Export Setlists for Web…** saves a `.ultrasetlists` file.
-2. Open that file here. Create, rename and rearrange Setlists (Songs and breaks), and save them as PDFs: with numbers or names only, laid out like the app's PDF.
+2. Open that file here. Create, rename and rearrange Setlists (Songs and breaks), and save them as PDFs (Song names only), laid out like the app's Names Only PDF.
 3. **Send File Back** shares or downloads a `.ultrasetlists` file to import in the app.
 
 Rules: Songs are read-only here; they're never created, renamed or deleted. You can only delete Setlists made here that were never sent. Everything stays in the browser (`localStorage`); there is no server and nothing is uploaded.

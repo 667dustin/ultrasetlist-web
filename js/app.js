@@ -250,7 +250,7 @@ function renderEditor(setlist) {
             h("button", { class: "plain back", onclick: () => show({ name: "home" }) }, "‹ Setlists"),
             h("div", { class: "bar-buttons" },
                 h("button", { onclick: () => printPDF(setlist), disabled: !hasLines,
-                    title: hasLines ? "Save this Setlist as a PDF" : "Add Songs with Sounds first" }, "PDF…"),
+                    title: hasLines ? "Save this Setlist as a PDF (Song names only)" : "Add Songs with Sounds first" }, "PDF"),
                 h("button", { class: "plain", onclick: () => setlistMenu(setlist), "aria-label": "More" }, "•••"))),
         h("label", { class: "title-label" }, "Setlist title",
             h("input", {
@@ -482,14 +482,9 @@ function openSongPicker(setlist) {
 
 // MARK: - PDF
 
+/** Names only for now; `renderSetlistPDF` still supports numbers if they're wanted again. */
 async function printPDF(setlist) {
-    const choice = await choose("PDF", "Numbers are each Song's first Sound in the Setlist, as in the app's Live Mode.", [
-        { label: "With Numbers", value: "numbers", style: "primary" },
-        { label: "Names Only", value: "names" },
-        { label: "Cancel", value: null },
-    ]);
-    if (!choice) return;
-    const blob = renderSetlistPDF(pdfLines(setlist, songsByID()), { showsNumbers: choice === "numbers", title: displayTitle(setlist) });
+    const blob = renderSetlistPDF(pdfLines(setlist, songsByID()), { showsNumbers: false, title: displayTitle(setlist) });
     if (!blob) return;
     await deliver(blob, `${safeName(displayTitle(setlist))}.pdf`, "application/pdf");
 }
