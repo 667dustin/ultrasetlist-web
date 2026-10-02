@@ -27,7 +27,7 @@ const fileInput = document.getElementById("file-input");
  * }
  */
 let state = load();
-/** What's on screen: { name: "home" } | { name: "edit", id } | { name: "send" }. */
+/** What's on screen: { name: "home" } | { name: "edit", id }. */
 let view = { name: "home" };
 /** Undo snapshots for the Setlist being edited. */
 let undoStack = [];
@@ -151,8 +151,6 @@ function render() {
         app.replaceChildren(renderStart());
     } else if (view.name === "edit") {
         app.replaceChildren(renderEditor(findSetlist(view.id)));
-    } else if (view.name === "send") {
-        app.replaceChildren(renderSend());
     } else {
         app.replaceChildren(renderHome());
     }
@@ -195,8 +193,8 @@ function renderHome() {
             + `${plural(state.songs.filter((s) => !s.missing).length, "Song")}`) : null,
         h("div", { class: "actions" },
             h("button", { class: "primary", onclick: newSetlist }, "+ New Setlist"),
-            h("button", { onclick: () => show({ name: "send" }), disabled: state.setlists.length === 0 },
-                unsent > 0 ? `Send File Back (${unsent})…` : "Send File Back…")),
+            h("button", { onclick: sendAll, disabled: state.setlists.length === 0, title: "Send all Setlists back as one file" },
+                unsent > 0 ? `Send File Back (${unsent} changed)` : "Send File Back")),
         setlists.length === 0 ? h("p", { class: "empty" }, "No Setlists yet.") : null,
         h("ul", { class: "list" },
             setlists.map((setlist) => {
@@ -251,6 +249,7 @@ function renderEditor(setlist) {
             h("div", { class: "bar-buttons" },
                 h("button", { onclick: () => printPDF(setlist), disabled: !hasLines,
                     title: hasLines ? "Save this Setlist as a PDF (Song names only)" : "Add Songs with Sounds first" }, "PDF"),
+                h("button", { onclick: sendAll, title: "Send all Setlists back as one file" }, "Send File"),
                 h("button", { class: "plain", onclick: () => setlistMenu(setlist), "aria-label": "More" }, "•••"))),
         h("label", { class: "title-label" }, "Setlist title",
             h("input", {
@@ -517,44 +516,16 @@ async function deliver(blob, filename, type, { preferShare = true } = {}) {
 
 // MARK: - Send back
 
-function renderSend() {
-    const setlists = [...state.setlists].sort((a, b) => displayTitle(a).localeCompare(displayTitle(b)));
-    const selected = new Set(setlists.filter(needsSending).map((s) => s.id));
-    const nameInput = h("input", { type: "text", value: state.senderName, placeholder: "e.g. Alex's phone", autocomplete: "name",
-        oninput: (e) => { state.senderName = e.target.value; save(); } });
-
-    const sendButtons = h("div", { class: "actions" });
-    const updateButtons = () => {
-        const canShareFiles = !!navigator.canShare;
-        sendButtons.replaceChildren(
-            canShareFiles ? h("button", { class: "primary", disabled: selected.size === 0, onclick: () => send(selected, true) }, "Share File…") : null,
-            h("button", { class: canShareFiles ? "" : "primary", disabled: selected.size === 0, onclick: () => send(selected, false) }, "Download File"));
-    };
-    updateButtons();
-
-    return h("main", {},
-        h("header", { class: "bar" },
-            h("button", { class: "plain back", onclick: () => show({ name: "home" }) }, "‹ Setlists"),
-            h("h1", {}, "Send File Back")),
-        h("p", {}, "Choose the Setlists to send. Send the file to whoever runs the app; they choose what to import. Songs are never changed."),
-        h("ul", { class: "list checklist" },
-            setlists.map((setlist) => {
-                const box = h("input", { type: "checkbox", checked: selected.has(setlist.id),
-                    onchange: (e) => { e.target.checked ? selected.add(setlist.id) : selected.delete(setlist.id); updateButtons(); } });
-                const status = statusText(setlist);
-                return h("li", {}, h("label", { class: "row" }, box,
-                    h("span", { class: "row-title" }, displayTitle(setlist)),
-                    h("span", { class: "row-detail" }, status || "unchanged")));
-            })),
-        h("label", { class: "field" }, "Your name (shown in the app)", nameInput),
-        sendButtons,
-        footer());
-}
-
-async function send(selectedIDs, share) {
-    const chosen = state.setlists.filter((s) => selectedIDs.has(s.id));
+/**
+ * Sends every Setlist back as one file, in one tap: the share sheet where
+ * the browser supports it, otherwise a download. The app's import shows
+ * which ones are new or changed, so nothing needs choosing here.
+ */
+async function sendAll() {
+    const chosen = state.setlists;
+    if (chosen.length === 0) return;
     const used = new Set(chosen.flatMap((s) => s.entries.map((e) => e.songID)).filter(Boolean));
-    // The Songs list goes back as it came, plus any kept-but-missing Songs the chosen Setlists still use.
+    // The Songs list goes back as it came, plus any kept-but-missing Songs a Setlist still uses.
     const songs = state.songs.filter((s) => !s.missing || used.has(s.id));
     const name = state.senderName.trim();
     let text;
@@ -564,13 +535,14 @@ async function send(selectedIDs, share) {
         await choose("Couldn't Make the File", error.message, [{ label: "OK", value: null }]);
         return;
     }
-    const label = chosen.length === 1 ? `Setlist - ${displayTitle(chosen[0])}` : "Setlists";
-    const result = await deliver(new Blob([text], { type: "application/json" }), suggestedFilename(label, name), "application/json", { preferShare: share });
+    const result = await deliver(new Blob([text], { type: "application/json" }), suggestedFilename("Setlists", name), "application/json");
     if (result === "cancelled") return;
     for (const setlist of chosen) setlist.sentKey = contentKey(setlist);
     save();
-    show({ name: "home" });
-    toast(result === "shared" ? `Shared ${plural(chosen.length, "Setlist")}` : `Downloaded ${plural(chosen.length, "Setlist")} — send the file from your Downloads`);
+    render();
+    toast(result === "shared"
+        ? `Shared ${plural(chosen.length, "Setlist")}`
+        : `Downloaded ${plural(chosen.length, "Setlist")}. Send the file from your Downloads.`);
 }
 
 // MARK: - Opening a file

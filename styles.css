@@ -83,7 +83,8 @@ input[type="text"], input[type="search"] {
     gap: 8px;
     min-height: 52px;
 }
-.bar-buttons { display: flex; gap: 8px; }
+.bar-buttons { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
+.bar-buttons button:not(.plain) { padding: 8px 12px; }
 .back { font-size: 1.05rem; }
 
 .source, .fine, .footer, .editor-status { color: var(--muted); font-size: 0.9rem; }
